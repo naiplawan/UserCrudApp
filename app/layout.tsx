@@ -1,15 +1,10 @@
 import type { Metadata } from 'next';
-import { Geist, Geist_Mono } from 'next/font/google';
+import { Geist_Mono, Nunito } from 'next/font/google';
 import ClientSessionProvider from '@/app/ClientSessionProvider';
 import './globals.css';
 
-const geistSans = Geist({
-  variable: '--font-geist-sans',
-  subsets: ['latin'],
-});
-
-const geistMono = Geist_Mono({
-  variable: '--font-geist-mono',
+const nunito = Nunito({
+  variable: '--font-nunito',
   subsets: ['latin'],
 });
 
@@ -21,8 +16,8 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <ClientSessionProvider >{children}</ClientSessionProvider>
+      <body className={`${nunito.variable} antialiased`}>
+        <ClientSessionProvider>{children}</ClientSessionProvider>
       </body>
     </html>
   );
