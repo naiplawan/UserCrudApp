@@ -34,7 +34,7 @@ export const fetchSheetData = async (): Promise<User[]> => {
   }));
 };
 
-export const createNewSheet = async (data) => {
+export const createNewSheet = async (data: any) => {
   const auth = new google.auth.GoogleAuth({
     keyFile: 'credentials.json',
     scopes: ['https://www.googleapis.com/auth/spreadsheets'],
@@ -42,7 +42,7 @@ export const createNewSheet = async (data) => {
 
   const sheets = google.sheets({ version: 'v4', auth });
   const response = await sheets.spreadsheets.create({
-    resource: {
+    requestBody: {
       properties: {
         title: 'New Sheet',
       },
@@ -50,7 +50,7 @@ export const createNewSheet = async (data) => {
         {
           data: [
             {
-              rowData: data.map((row) => ({
+              rowData: data.map((row: any) => ({
                 values: Object.values(row).map((cell) => ({ userEnteredValue: { stringValue: cell } })),
               })),
             },
