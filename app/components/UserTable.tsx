@@ -1,111 +1,112 @@
-import { useState, useMemo, useEffect } from 'react';
-import { Listbox } from '@headlessui/react';
-import { User, UserTableProps } from '@/app/interface/index';
+'use client';
 
-const UserTable: React.FC<UserTableProps> = ({ data }) => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortKey, setSortKey] = useState<'first_name' | 'email' | 'job_title'>('first_name');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+import { useState, useEffect } from 'react';
+import { User } from '@/app/interface';
+
+export default function UserTable() {
+  const [data, setData] = useState<User[]>([]);
+  const [filteredData, setFilteredData] = useState<User[]>([]);
+  const [search, setSearch] = useState('');
+  const [sortConfig, setSortConfig] = useState({ key: '', direction: '' });
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm]);
+    const fetchData = async () => {
+      try {
+        setError(null);
+        const response = await fetch('/api/sheets');
+        if (!response.ok) throw new Error('Failed to fetch data');
+        const result = await response.json();
+        setData(result);
+        setFilteredData(result);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An error occurred');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const filteredData = useMemo(() => {
-    return data.filter((row) =>
-      Object.values(row).some((cell) => cell.toLowerCase().includes(searchTerm.toLowerCase()))
+    fetchData();
+  }, []);
+
+  const handleSearch = (value: string) => {
+    setSearch(value);
+    const filtered = data.filter(item =>
+      Object.values(item).some(val =>
+        val.toString().toLowerCase().includes(value.toLowerCase())
+      )
     );
-  }, [data, searchTerm]);
+    setFilteredData(filtered);
+  };
 
-  const sortedData = useMemo(() => {
-    return filteredData.sort((a, b) => {
-      if (sortKey === 'first_name') return a.first_name.localeCompare(b.first_name);
-      if (sortKey === 'email') return a.email.localeCompare(b.email);
-      return a.job_title.localeCompare(b.job_title);
+  const handleSort = (key: string) => {
+    let direction = 'ascending';
+    if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+      direction = 'descending';
+    }
+    setSortConfig({ key, direction });
+
+    const sorted = [...filteredData].sort((a, b) => {
+      if (direction === 'ascending') {
+        return a[key] > b[key] ? 1 : -1;
+      }
+      return a[key] < b[key] ? 1 : -1;
     });
-  }, [filteredData, sortKey]);
+    setFilteredData(sorted);
+  };
 
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = sortedData.slice(indexOfFirstItem, indexOfLastItem);
-
-  const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
+  const handleExport = async () => {
+    const response = await fetch('/api/sheets', {
+      method: 'POST',
+      body: JSON.stringify(filteredData),
+    });
+    const { url } = await response.json();
+    window.open(url, '_blank');
+  };
 
   return (
     <div className="p-4">
-      <div className="flex justify-between mb-4">
+      <div className="mb-4 flex justify-between">
         <input
           type="text"
           placeholder="Search..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          value={search}
+          onChange={(e) => handleSearch(e.target.value)}
           className="p-2 border rounded"
         />
-        <Listbox value={sortKey} onChange={setSortKey}>
-          <Listbox.Button className="p-2 border rounded">
-            Sort by: {sortKey}
-          </Listbox.Button>
-          <Listbox.Options className="absolute mt-1 bg-white border rounded shadow-lg">
-            {['first_name', 'email', 'job_title'].map((key) => (
-              <Listbox.Option
+        <button
+          onClick={handleExport}
+          className="px-4 py-2 bg-green-500 text-white rounded"
+        >
+          Export to Sheet
+        </button>
+      </div>
+
+      <table className="min-w-full">
+        <thead>
+          <tr>
+            {data[0] && Object.keys(data[0]).map(key => (
+              <th
                 key={key}
-                value={key}
-                className="p-2 hover:bg-gray-100 cursor-pointer"
+                onClick={() => handleSort(key)}
+                className="cursor-pointer p-2"
               >
                 {key}
-              </Listbox.Option>
+              </th>
             ))}
-          </Listbox.Options>
-        </Listbox>
-      </div>
-      <table className="w-full border-collapse">
-        <thead>
-          <tr className="bg-gray-100">
-            <th className="p-2 border">First Name</th>
-            <th className="p-2 border">Email</th>
-            <th className="p-2 border">Job Title</th>
           </tr>
         </thead>
         <tbody>
-          {currentItems.map((row, index) => (
-            <tr key={index} className="hover:bg-gray-50">
-              <td className="p-2 border">{row.first_name}</td>
-              <td className="p-2 border">{row.email}</td>
-              <td className="p-2 border">{row.job_title}</td>
+          {filteredData.map((row, i) => (
+            <tr key={i}>
+              {Object.values(row).map((cell, j) => (
+                <td key={j} className="p-2 border">{cell}</td>
+              ))}
             </tr>
           ))}
         </tbody>
       </table>
-      <div className="flex justify-center mt-4">
-        <button
-          onClick={() => paginate(currentPage - 1)}
-          disabled={currentPage === 1}
-          className="mx-1 p-2 border rounded bg-gray-100 disabled:opacity-50"
-        >
-          Previous
-        </button>
-        {Array.from({ length: Math.ceil(sortedData.length / itemsPerPage) }, (_, i) => (
-          <button
-            key={i + 1}
-            onClick={() => paginate(i + 1)}
-            className={`mx-1 p-2 border rounded ${
-              currentPage === i + 1 ? 'bg-blue-500 text-white' : 'bg-white'
-            }`}
-          >
-            {i + 1}
-          </button>
-        ))}
-        <button
-          onClick={() => paginate(currentPage + 1)}
-          disabled={currentPage === Math.ceil(sortedData.length / itemsPerPage)}
-          className="mx-1 p-2 border rounded bg-gray-100 disabled:opacity-50"
-        >
-          Next
-        </button>
-      </div>
     </div>
   );
-};
-
-export default UserTable;
+}
